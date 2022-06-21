@@ -1,0 +1,62 @@
+from keras.utils import load_img,img_to_array
+from keras.preprocessing.image import ImageDataGenerator
+from keras.models import load_model
+import numpy as np
+#camera
+# define a video capture object
+model_rice = load_model('rice.h5')
+trainning = 'train'
+test = 'test'
+data_generator = ImageDataGenerator(
+        validation_split=0.2,
+        rotation_range=20,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        rescale=1./255,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+        fill_mode='nearest')
+train_generator = data_generator.flow_from_directory(trainning, target_size=(150,150), shuffle=True, seed=10,  # target_size: resize ảnh đầu ra
+                                            class_mode='categorical', batch_size=64, subset="training")
+nb_train_samples = train_generator.samples
+classes = list(train_generator.class_indices.keys())
+print('Classes: '+str(classes))
+import cv2
+cam = cv2.VideoCapture(0)
+cv2.namedWindow("test")
+img_counter = 0
+i=0
+text = ''
+while True:
+    ret, frame = cam.read()
+    if not ret:
+        print("failed to grab frame")
+        break
+    i=i+1
+    img1={}
+    img2=frame
+
+    if i==50:
+        img_name = "opencv_frame_{}.png".format(img_counter)
+        cv2.imwrite(img_name, frame)
+        print("{} written!".format(img_name))
+        img = load_img(img_name, target_size=(150, 150))
+        img2 = cv2.imread(img_name)
+
+        img = img_to_array(img)
+        img = img.reshape(1, 150, 150, 3)
+        img = img.astype('float32')
+        img /= 255
+        #
+        text = classes[np.argmax(model_rice.predict(img), axis=1)[0]]
+        print(text)
+        i=0
+
+    cv2.putText(img2, text, (30, 50), fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=1.5, color=(0, 0, 0),thickness=3)
+    cv2.imshow('res', img2)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+cv2.destroyAllWindows()
+
+cam.release()
